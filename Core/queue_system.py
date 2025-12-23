@@ -74,10 +74,19 @@ class QueueSystem:
         if not q:
             return None
 
-        ticket_id = q.pop(0)  # list
+        ticket_id = q.pop(0)
         ticket = self.tickets[ticket_id]
         ticket.mark_called()
+
+        # 🔧 תיקון הבאג:
+        # הלקוח כבר לא "מחכה בתור" ולכן משחררים אותו
+        customer = self.customers[ticket.customer_id]
+        if customer.active_ticket_id == ticket_id:
+            customer.set_active_ticket(None)
+
+        ticket.log("Customer released from queue on CALL")
         return ticket
+
 
     def finish_ticket(self, ticket_id: str) -> None:
         if ticket_id not in self.tickets:
