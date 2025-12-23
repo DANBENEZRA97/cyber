@@ -25,6 +25,23 @@ class QueueApp(tk.Tk):
         self.system.add_service(Service("S2", "Payments", 5))
         self.system.add_service(Service("S3", "Tech Help", 10))
 
+        # (אופציונלי) דמו: אנשים בתור
+        customers = [
+            Customer("C1", "Alice Cohen", "050-1111111", priority=0),
+            Customer("C2", "Bob Levi", "050-2222222", priority=1),
+            Customer("C3", "Dana Israel", "050-3333333", priority=0),
+            Customer("C4", "Eyal Mor", "050-4444444", priority=1),
+            Customer("C5", "Noa Bar", "050-5555555", priority=0),
+        ]
+        for c in customers:
+            self.system.add_customer(c)
+
+        self.system.create_ticket("C1", "S1", priority=0)
+        self.system.create_ticket("C2", "S1", priority=1)
+        self.system.create_ticket("C3", "S1", priority=0)
+        self.system.create_ticket("C4", "S1", priority=1)
+        self.system.create_ticket("C5", "S2", priority=0)
+
     def _build_ui(self) -> None:
         services = self.system.list_services()
         self.service_display_to_id = {s.display(): s.service_id for s in services}
@@ -61,6 +78,9 @@ class QueueApp(tk.Tk):
         if service_values:
             self.u_service.current(0)
 
+        # ✅ תיקון: כשהמשתמש מחליף שירות – לרענן רשימת תור
+        self.u_service.bind("<<ComboboxSelected>>", lambda e: self._refresh_user_queue())
+
         ttk.Button(user_top, text="Join Queue", command=self.on_user_join).grid(
             row=1, column=5, padx=6, pady=6
         )
@@ -90,11 +110,14 @@ class QueueApp(tk.Tk):
         self.a_phone = ttk.Entry(admin_top, width=18)
         self.a_phone.grid(row=0, column=5, padx=6)
 
-        ttk.Label(admin_top, text="Service:").grid(row=1, column=0, padx=6)
+        ttk.Label(admin_top, text="Service (filter + actions):").grid(row=1, column=0, padx=6)
         self.a_service = ttk.Combobox(admin_top, state="readonly", values=service_values)
         self.a_service.grid(row=1, column=1, padx=6)
         if service_values:
             self.a_service.current(0)
+
+        # ✅ תיקון: כשהאדמין מחליף שירות – לסנן את הרשימה לפי שירות
+        self.a_service.bind("<<ComboboxSelected>>", lambda e: (self._refresh_admin_list(), self._refresh_user_queue()))
 
         ttk.Label(admin_top, text="Priority (0/1):").grid(row=1, column=2, padx=6)
         self.a_priority = ttk.Entry(admin_top, width=10)
@@ -215,9 +238,6 @@ class QueueApp(tk.Tk):
             messagebox.showerror("Error", str(e))
 
     def on_set_priority(self):
-        """
-        Admin: שינוי priority לטיקט קיים (רק WAITING) + סידור מחדש בתור.
-        """
         try:
             tid = self._selected_admin_ticket()
             if not tid:
@@ -237,23 +257,32 @@ class QueueApp(tk.Tk):
 
     # ================= HELPERS =================
     def _refresh_user_queue(self):
-        """
-        User רואה רק שמות, אבל לפי סדר תור אמיתי (כולל priority).
-        מציגים לפי השירות שנבחר ע"י המשתמש בטאב User.
-        """
         self.user_queue.delete(0, tk.END)
-        service_id = self.service_display_to_id[self.u_service.get()]
+        if not self.u_service.get():
+            return
 
+        service_id = self.service_display_to_id[self.u_service.get()]
         q = self.system.queues_by_service.get(service_id, [])
         for tid in q:
             t = self.system.tickets[tid]
             name = self.system.customers[t.customer_id].full_name
-            # אם רוצים גם להמחיש עדיפות בלי לחשוף פרטים: אפשר להשאיר רק שם
             self.user_queue.insert(tk.END, name)
 
     def _refresh_admin_list(self):
+        """
+        ✅ תיקון: באדמין מציגים רק טיקטים של השירות שנבחר ב-a_service
+        """
         self.admin_list.delete(0, tk.END)
-        for t in sorted(self.system.tickets.values(), key=lambda x: x.created_at):
+        if not self.a_service.get():
+            return
+
+        service_id = self.service_display_to_id[self.a_service.get()]
+
+        # נציג לפי זמן יצירה (ועדיין רק של אותו שירות)
+        tickets = [t for t in self.system.tickets.values() if t.service_id == service_id]
+        tickets.sort(key=lambda x: x.created_at)
+
+        for t in tickets:
             c = self.system.customers.get(t.customer_id)
             name = c.full_name if c else "UNKNOWN"
             self.admin_list.insert(tk.END, f"{t.ticket_id} | P={t.priority} | {t.status} | {name}")
