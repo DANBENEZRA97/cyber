@@ -1,10 +1,12 @@
 from __future__ import annotations
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog  # 🔐 NEW
 
 from Core.queue_system import QueueSystem
 from Core.person import Customer
 from Core.service import Service
+
+ADMIN_PASSWORD = "admin123"  # 🔐 NEW
 
 
 class QueueApp(tk.Tk):
@@ -16,6 +18,8 @@ class QueueApp(tk.Tk):
         self.system = QueueSystem()
         self._seed_data()
 
+        self.admin_authenticated = False  # 🔐 NEW
+
         self._build_ui()
         self._refresh_user_queue()
         self._refresh_admin_list()
@@ -25,7 +29,6 @@ class QueueApp(tk.Tk):
         self.system.add_service(Service("S2", "Payments", 5))
         self.system.add_service(Service("S3", "Tech Help", 10))
 
-        # (אופציונלי) דמו: אנשים בתור
         customers = [
             Customer("C1", "Alice Cohen", "050-1111111", priority=0),
             Customer("C2", "Bob Levi", "050-2222222", priority=1),
@@ -49,6 +52,9 @@ class QueueApp(tk.Tk):
 
         notebook = ttk.Notebook(self)
         notebook.pack(fill="both", expand=True, padx=10, pady=10)
+
+        notebook.bind("<<NotebookTabChanged>>", self._on_tab_change)  # 🔐 NEW
+        self.notebook = notebook  # 🔐 NEW (רק שמירה לרפרנס)
 
         self.tab_user = ttk.Frame(notebook)
         self.tab_admin = ttk.Frame(notebook)
@@ -78,7 +84,6 @@ class QueueApp(tk.Tk):
         if service_values:
             self.u_service.current(0)
 
-        # ✅ תיקון: כשהמשתמש מחליף שירות – לרענן רשימת תור
         self.u_service.bind("<<ComboboxSelected>>", lambda e: self._refresh_user_queue())
 
         ttk.Button(user_top, text="Join Queue", command=self.on_user_join).grid(
@@ -116,8 +121,10 @@ class QueueApp(tk.Tk):
         if service_values:
             self.a_service.current(0)
 
-        # ✅ תיקון: כשהאדמין מחליף שירות – לסנן את הרשימה לפי שירות
-        self.a_service.bind("<<ComboboxSelected>>", lambda e: (self._refresh_admin_list(), self._refresh_user_queue()))
+        self.a_service.bind(
+            "<<ComboboxSelected>>",
+            lambda e: (self._refresh_admin_list(), self._refresh_user_queue())
+        )
 
         ttk.Label(admin_top, text="Priority (0/1):").grid(row=1, column=2, padx=6)
         self.a_priority = ttk.Entry(admin_top, width=10)
@@ -153,6 +160,18 @@ class QueueApp(tk.Tk):
 
         self.admin_details = tk.Text(admin_mid, wrap="word")
         self.admin_details.pack(side="left", fill="both", expand=True)
+
+    # 🔐 NEW: סיסמת אדמין בלבד (לא משנה כלום אחר)
+    def _on_tab_change(self, event):
+        selected = event.widget.tab(event.widget.index("current"))["text"]
+        if selected == "Admin" and not self.admin_authenticated:
+            pwd = simpledialog.askstring("Admin Login", "Enter admin password:", show="*")
+            if pwd != ADMIN_PASSWORD:
+                messagebox.showerror("Access Denied", "Wrong password")
+                event.widget.select(0)  # חזרה ל-User
+            else:
+                self.admin_authenticated = True
+                messagebox.showinfo("Success", "Admin access granted")
 
     # ================= USER =================
     def on_user_join(self) -> None:
@@ -269,16 +288,11 @@ class QueueApp(tk.Tk):
             self.user_queue.insert(tk.END, name)
 
     def _refresh_admin_list(self):
-        """
-        ✅ תיקון: באדמין מציגים רק טיקטים של השירות שנבחר ב-a_service
-        """
         self.admin_list.delete(0, tk.END)
         if not self.a_service.get():
             return
 
         service_id = self.service_display_to_id[self.a_service.get()]
-
-        # נציג לפי זמן יצירה (ועדיין רק של אותו שירות)
         tickets = [t for t in self.system.tickets.values() if t.service_id == service_id]
         tickets.sort(key=lambda x: x.created_at)
 
