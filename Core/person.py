@@ -17,12 +17,11 @@ class Person:
         return f"{self.full_name} ({self.person_id})"
 
 
-class Customer(Person):  # הורשה רגילה (דרישה)
+class Customer(Person):  
     def __init__(self, person_id: str, full_name: str, phone: str, priority: int = 0) -> None:
         super().__init__(person_id, full_name, phone)
-        self.priority: int = priority              # תכונה 1 נוספת
-        self.active_ticket_id: Optional[str] = None # תכונה 2 נוספת
-
+        self.priority: int = priority             
+        self.active_ticket_id: Optional[str] = None #
     def set_active_ticket(self, ticket_id: Optional[str]) -> None:
         self.active_ticket_id = ticket_id
 

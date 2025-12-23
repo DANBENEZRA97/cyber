@@ -1,4 +1,3 @@
-# gui_app.py
 from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -12,220 +11,278 @@ class QueueApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Queue Management System")
-        self.geometry("900x520")
+        self.geometry("950x600")
 
-        # המערכת הלוגית (ה-Store/System של הפרויקט)
         self.system = QueueSystem()
         self._seed_data()
 
         self._build_ui()
-        self._refresh_queue_list()
+        self._refresh_user_queue()
+        self._refresh_admin_list()
 
     def _seed_data(self) -> None:
-        # שירותים התחלתיים
         self.system.add_service(Service("S1", "Customer Support", 7))
         self.system.add_service(Service("S2", "Payments", 5))
         self.system.add_service(Service("S3", "Tech Help", 10))
 
-    # ---------------- UI ----------------
     def _build_ui(self) -> None:
-        # אזור עליון: יצירת לקוח+טיקט
-        top = ttk.LabelFrame(self, text="Create Ticket")
-        top.pack(fill="x", padx=10, pady=10)
-
-        ttk.Label(top, text="Customer ID:").grid(row=0, column=0, padx=6, pady=6, sticky="w")
-        self.ent_customer_id = ttk.Entry(top, width=20)
-        self.ent_customer_id.grid(row=0, column=1, padx=6, pady=6)
-
-        ttk.Label(top, text="Full Name:").grid(row=0, column=2, padx=6, pady=6, sticky="w")
-        self.ent_full_name = ttk.Entry(top, width=25)
-        self.ent_full_name.grid(row=0, column=3, padx=6, pady=6)
-
-        ttk.Label(top, text="Phone:").grid(row=0, column=4, padx=6, pady=6, sticky="w")
-        self.ent_phone = ttk.Entry(top, width=20)
-        self.ent_phone.grid(row=0, column=5, padx=6, pady=6)
-
-        ttk.Label(top, text="Service:").grid(row=1, column=0, padx=6, pady=6, sticky="w")
-        self.cmb_service = ttk.Combobox(top, state="readonly", width=27)
-        self.cmb_service.grid(row=1, column=1, padx=6, pady=6, sticky="w")
-
-        ttk.Label(top, text="Priority (0/1):").grid(row=1, column=2, padx=6, pady=6, sticky="w")
-        self.ent_priority = ttk.Entry(top, width=10)
-        self.ent_priority.grid(row=1, column=3, padx=6, pady=6, sticky="w")
-        self.ent_priority.insert(0, "0")
-
-        self.btn_create = ttk.Button(top, text="Create Ticket", command=self.on_create_ticket)  # Event 1
-        self.btn_create.grid(row=1, column=5, padx=6, pady=6, sticky="e")
-
-        # למלא שירותים בקומבו
         services = self.system.list_services()
-        self.service_display_to_id = {s.display(): s.service_id for s in services}  # dict
-        self.cmb_service["values"] = list(self.service_display_to_id.keys())
-        if services:
-            self.cmb_service.current(0)
+        self.service_display_to_id = {s.display(): s.service_id for s in services}
+        service_values = list(self.service_display_to_id.keys())
 
-        # אזור אמצעי: תור + פעולות
-        mid = ttk.Frame(self)
-        mid.pack(fill="both", expand=True, padx=10, pady=10)
+        notebook = ttk.Notebook(self)
+        notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
-        left = ttk.LabelFrame(mid, text="Queue (by service)")
-        left.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        self.tab_user = ttk.Frame(notebook)
+        self.tab_admin = ttk.Frame(notebook)
 
-        ttk.Label(left, text="Choose service:").pack(anchor="w", padx=8, pady=(8, 4))
-        self.cmb_service_queue = ttk.Combobox(left, state="readonly")
-        self.cmb_service_queue.pack(fill="x", padx=8)
-        self.cmb_service_queue["values"] = list(self.service_display_to_id.keys())
-        self.cmb_service_queue.bind("<<ComboboxSelected>>", lambda e: self._refresh_queue_list())  # Event (שינוי בחירה)
-        self.cmb_service_queue.current(0)
+        notebook.add(self.tab_user, text="User")
+        notebook.add(self.tab_admin, text="Admin")
 
-        self.lst_queue = tk.Listbox(left, height=15)
-        self.lst_queue.pack(fill="both", expand=True, padx=8, pady=8)
+        # ================= USER TAB =================
+        user_top = ttk.LabelFrame(self.tab_user, text="Enter Queue")
+        user_top.pack(fill="x", padx=10, pady=10)
 
-        # Event 3: דאבל קליק להצגת Audit Log
-        self.lst_queue.bind("<Double-Button-1>", self.on_ticket_double_click)
+        ttk.Label(user_top, text="Customer ID:").grid(row=0, column=0, padx=6, pady=6)
+        self.u_id = ttk.Entry(user_top, width=22)
+        self.u_id.grid(row=0, column=1, padx=6)
 
-        btns = ttk.Frame(left)
-        btns.pack(fill="x", padx=8, pady=(0, 8))
+        ttk.Label(user_top, text="Full Name:").grid(row=0, column=2, padx=6)
+        self.u_name = ttk.Entry(user_top, width=26)
+        self.u_name.grid(row=0, column=3, padx=6)
 
-        self.btn_call_next = ttk.Button(btns, text="Call Next", command=self.on_call_next)  # Event 2
-        self.btn_call_next.pack(side="left")
+        ttk.Label(user_top, text="Phone:").grid(row=0, column=4, padx=6)
+        self.u_phone = ttk.Entry(user_top, width=18)
+        self.u_phone.grid(row=0, column=5, padx=6)
 
-        self.btn_finish = ttk.Button(btns, text="Finish Selected", command=self.on_finish_selected)
-        self.btn_finish.pack(side="left", padx=6)
+        ttk.Label(user_top, text="Service:").grid(row=1, column=0, padx=6)
+        self.u_service = ttk.Combobox(user_top, state="readonly", values=service_values)
+        self.u_service.grid(row=1, column=1, padx=6)
+        if service_values:
+            self.u_service.current(0)
 
-        self.btn_cancel = ttk.Button(btns, text="Cancel Selected", command=self.on_cancel_selected)
-        self.btn_cancel.pack(side="left")
+        ttk.Button(user_top, text="Join Queue", command=self.on_user_join).grid(
+            row=1, column=5, padx=6, pady=6
+        )
 
-        # אזור ימני: Audit/Info
-        right = ttk.LabelFrame(mid, text="Ticket Details / Audit Log")
-        right.pack(side="left", fill="both", expand=True)
+        user_mid = ttk.Frame(self.tab_user)
+        user_mid.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.txt_details = tk.Text(right, height=20, wrap="word")
-        self.txt_details.pack(fill="both", expand=True, padx=8, pady=8)
+        self.user_queue = tk.Listbox(user_mid, height=18)
+        self.user_queue.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
-    # ---------------- Events / Handlers ----------------
-    def on_create_ticket(self) -> None:
+        self.user_output = tk.Text(user_mid, wrap="word")
+        self.user_output.pack(side="left", fill="both", expand=True)
+
+        # ================= ADMIN TAB =================
+        admin_top = ttk.LabelFrame(self.tab_admin, text="Admin Control")
+        admin_top.pack(fill="x", padx=10, pady=10)
+
+        ttk.Label(admin_top, text="Customer ID:").grid(row=0, column=0, padx=6)
+        self.a_id = ttk.Entry(admin_top, width=20)
+        self.a_id.grid(row=0, column=1, padx=6)
+
+        ttk.Label(admin_top, text="Full Name:").grid(row=0, column=2, padx=6)
+        self.a_name = ttk.Entry(admin_top, width=24)
+        self.a_name.grid(row=0, column=3, padx=6)
+
+        ttk.Label(admin_top, text="Phone:").grid(row=0, column=4, padx=6)
+        self.a_phone = ttk.Entry(admin_top, width=18)
+        self.a_phone.grid(row=0, column=5, padx=6)
+
+        ttk.Label(admin_top, text="Service:").grid(row=1, column=0, padx=6)
+        self.a_service = ttk.Combobox(admin_top, state="readonly", values=service_values)
+        self.a_service.grid(row=1, column=1, padx=6)
+        if service_values:
+            self.a_service.current(0)
+
+        ttk.Label(admin_top, text="Priority (0/1):").grid(row=1, column=2, padx=6)
+        self.a_priority = ttk.Entry(admin_top, width=10)
+        self.a_priority.grid(row=1, column=3, padx=6)
+        self.a_priority.insert(0, "0")
+
+        ttk.Button(admin_top, text="Create Ticket", command=self.on_admin_create).grid(
+            row=1, column=5, padx=6
+        )
+
+        admin_mid = ttk.Frame(self.tab_admin)
+        admin_mid.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.admin_list = tk.Listbox(admin_mid, height=18)
+        self.admin_list.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        self.admin_list.bind("<Double-Button-1>", self.on_admin_select)
+
+        admin_controls = ttk.Frame(admin_mid)
+        admin_controls.pack(side="left", fill="y")
+
+        ttk.Button(admin_controls, text="Call Next", command=self.on_call_next).pack(fill="x", pady=4)
+        ttk.Button(admin_controls, text="Finish", command=self.on_finish).pack(fill="x", pady=4)
+        ttk.Button(admin_controls, text="Cancel", command=self.on_cancel).pack(fill="x", pady=4)
+
+        ttk.Separator(admin_controls, orient="horizontal").pack(fill="x", pady=10)
+
+        ttk.Label(admin_controls, text="Change Priority of selected ticket:").pack(anchor="w", pady=(0, 4))
+        self.adm_new_priority = ttk.Combobox(admin_controls, state="readonly", values=["0", "1"], width=6)
+        self.adm_new_priority.pack(anchor="w")
+        self.adm_new_priority.current(0)
+
+        ttk.Button(admin_controls, text="Set Priority", command=self.on_set_priority).pack(fill="x", pady=6)
+
+        self.admin_details = tk.Text(admin_mid, wrap="word")
+        self.admin_details.pack(side="left", fill="both", expand=True)
+
+    # ================= USER =================
+    def on_user_join(self) -> None:
         try:
-            customer_id = self.ent_customer_id.get().strip()
-            full_name = self.ent_full_name.get().strip()
-            phone = self.ent_phone.get().strip()
-            priority_str = self.ent_priority.get().strip()
+            cid = self.u_id.get().strip()
+            name = self.u_name.get().strip()
+            phone = self.u_phone.get().strip()
+            if not cid or not name or not phone:
+                raise ValueError("Fill all fields")
 
-            if not customer_id or not full_name or not phone:
-                raise ValueError("Please fill Customer ID, Full Name, Phone")
+            service_id = self.service_display_to_id[self.u_service.get()]
 
-            priority = int(priority_str)
+            if cid not in self.system.customers:
+                self.system.add_customer(Customer(cid, name, phone, priority=0))
+            else:
+                c = self.system.customers[cid]
+                c.full_name, c.phone, c.priority = name, phone, 0
+
+            ticket = self.system.create_ticket(cid, service_id, priority=0)
+
+            self.user_output.delete("1.0", tk.END)
+            self.user_output.insert(tk.END, f"Hello {name}\nYour ticket number is {ticket.ticket_id}")
+
+            self._refresh_user_queue()
+            self._refresh_admin_list()
+
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    # ================= ADMIN =================
+    def on_admin_create(self) -> None:
+        try:
+            cid = self.a_id.get().strip()
+            name = self.a_name.get().strip()
+            phone = self.a_phone.get().strip()
+            if not cid or not name or not phone:
+                raise ValueError("Fill all fields")
+
+            priority = int(self.a_priority.get().strip())
             if priority not in (0, 1):
                 raise ValueError("Priority must be 0 or 1")
 
-            service_display = self.cmb_service.get()
-            service_id = self.service_display_to_id[service_display]
+            service_id = self.service_display_to_id[self.a_service.get()]
 
-            # אם הלקוח לא קיים – ניצור אותו
-            if customer_id not in self.system.customers:
-                self.system.add_customer(Customer(customer_id, full_name, phone, priority=priority))
+            if cid not in self.system.customers:
+                self.system.add_customer(Customer(cid, name, phone, priority))
             else:
-                # אם קיים, נעדכן שם/טלפון/עדיפות (פשוט)
-                c = self.system.customers[customer_id]
-                c.full_name = full_name
-                c.update_phone(phone)
-                c.priority = priority
+                c = self.system.customers[cid]
+                c.full_name, c.phone, c.priority = name, phone, priority
 
-            ticket = self.system.create_ticket(customer_id, service_id)
-            messagebox.showinfo("Success", f"Created {ticket.ticket_id}")
-            self._refresh_queue_list()
+            self.system.create_ticket(cid, service_id, priority=priority)
+            self._refresh_user_queue()
+            self._refresh_admin_list()
 
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
-    def on_call_next(self) -> None:
+    def on_call_next(self):
         try:
-            service_id = self._selected_queue_service_id()
-            ticket = self.system.call_next_ticket(service_id)
-            if not ticket:
-                messagebox.showinfo("Info", "Queue is empty.")
+            service_id = self.service_display_to_id[self.a_service.get()]
+            self.system.call_next_ticket(service_id)
+            self._refresh_user_queue()
+            self._refresh_admin_list()
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def on_finish(self):
+        try:
+            tid = self._selected_admin_ticket()
+            if tid:
+                self.system.finish_ticket(tid)
+                self._refresh_admin_list()
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def on_cancel(self):
+        try:
+            tid = self._selected_admin_ticket()
+            if tid:
+                self.system.cancel_ticket(tid)
+                self._refresh_admin_list()
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def on_set_priority(self):
+        """
+        Admin: שינוי priority לטיקט קיים (רק WAITING) + סידור מחדש בתור.
+        """
+        try:
+            tid = self._selected_admin_ticket()
+            if not tid:
                 return
-            self._refresh_queue_list()
-            self._show_ticket_details(ticket.ticket_id)
+            new_p = int(self.adm_new_priority.get())
+            self.system.set_ticket_priority(tid, new_p)
+            self._refresh_user_queue()
+            self._refresh_admin_list()
+            self._show_admin_details(tid)
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
-    def on_finish_selected(self) -> None:
-        ticket_id = self._selected_ticket_id()
-        if not ticket_id:
-            return
-        try:
-            self.system.finish_ticket(ticket_id)
-            self._refresh_queue_list()
-            self._show_text(f"Finished {ticket_id}\n")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
+    def on_admin_select(self, _):
+        tid = self._selected_admin_ticket()
+        if tid:
+            self._show_admin_details(tid)
 
-    def on_cancel_selected(self) -> None:
-        ticket_id = self._selected_ticket_id()
-        if not ticket_id:
-            return
-        try:
-            self.system.cancel_ticket(ticket_id)
-            self._refresh_queue_list()
-            self._show_text(f"Canceled {ticket_id}\n")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
+    # ================= HELPERS =================
+    def _refresh_user_queue(self):
+        """
+        User רואה רק שמות, אבל לפי סדר תור אמיתי (כולל priority).
+        מציגים לפי השירות שנבחר ע"י המשתמש בטאב User.
+        """
+        self.user_queue.delete(0, tk.END)
+        service_id = self.service_display_to_id[self.u_service.get()]
 
-    def on_ticket_double_click(self, _event) -> None:
-        ticket_id = self._selected_ticket_id()
-        if ticket_id:
-            self._show_ticket_details(ticket_id)
-
-    # ---------------- Helpers ----------------
-    def _selected_queue_service_id(self) -> str:
-        display = self.cmb_service_queue.get()
-        return self.service_display_to_id[display]
-
-    def _refresh_queue_list(self) -> None:
-        self.lst_queue.delete(0, tk.END)
-
-        service_id = self._selected_queue_service_id()
-        ticket_ids = self.system.queues_by_service.get(service_id, [])
-
-        for tid in ticket_ids:
+        q = self.system.queues_by_service.get(service_id, [])
+        for tid in q:
             t = self.system.tickets[tid]
-            self.lst_queue.insert(tk.END, t.summary())
+            name = self.system.customers[t.customer_id].full_name
+            # אם רוצים גם להמחיש עדיפות בלי לחשוף פרטים: אפשר להשאיר רק שם
+            self.user_queue.insert(tk.END, name)
 
-        est = self.system.estimate_wait_minutes(service_id)
-        self._show_text(f"Service queue refreshed. Estimated wait: {est} minutes.\n")
+    def _refresh_admin_list(self):
+        self.admin_list.delete(0, tk.END)
+        for t in sorted(self.system.tickets.values(), key=lambda x: x.created_at):
+            c = self.system.customers.get(t.customer_id)
+            name = c.full_name if c else "UNKNOWN"
+            self.admin_list.insert(tk.END, f"{t.ticket_id} | P={t.priority} | {t.status} | {name}")
 
-    def _selected_ticket_id(self):
-        selection = self.lst_queue.curselection()
-        if not selection:
-            messagebox.showinfo("Info", "Select a ticket from the list.")
+    def _selected_admin_ticket(self):
+        sel = self.admin_list.curselection()
+        if not sel:
+            messagebox.showinfo("Info", "Select a ticket from the admin list.")
             return None
-        line = self.lst_queue.get(selection[0])
-        # summary: "T1001 | WAITING | 12:34:56"
-        return line.split("|")[0].strip()
+        return self.admin_list.get(sel[0]).split("|")[0].strip()
 
-    def _show_ticket_details(self, ticket_id: str) -> None:
-        t = self.system.tickets[ticket_id]
+    def _show_admin_details(self, tid: str):
+        t = self.system.tickets[tid]
         c = self.system.customers.get(t.customer_id)
         s = self.system.services.get(t.service_id)
 
-        text = []
-        text.append(f"Ticket: {t.ticket_id}")
-        text.append(f"Status: {t.status}")
-        text.append(f"Customer: {c.short_display() if c else t.customer_id}")
-        text.append(f"Service: {s.display() if s else t.service_id}")
-        text.append("\n--- Audit Log ---")
-        for row in t.get_audit_log():
-            text.append(row)
-
-        self.txt_details.delete("1.0", tk.END)
-        self.txt_details.insert(tk.END, "\n".join(text))
-
-    def _show_text(self, msg: str) -> None:
-        self.txt_details.insert(tk.END, msg)
-        self.txt_details.see(tk.END)
+        self.admin_details.delete("1.0", tk.END)
+        self.admin_details.insert(
+            tk.END,
+            f"Ticket: {t.ticket_id}\n"
+            f"Status: {t.status}\n"
+            f"Priority: {t.priority}\n"
+            f"Service: {s.name if s else t.service_id}\n\n"
+            f"Customer ID: {c.person_id if c else 'UNKNOWN'}\n"
+            f"Full Name: {c.full_name if c else 'UNKNOWN'}\n"
+            f"Phone: {c.phone if c else 'UNKNOWN'}\n\n"
+            f"Audit:\n" + "\n".join(t.get_audit_log())
+        )
 
 
-def run_gui() -> None:
-    app = QueueApp()
-    app.mainloop()
+def run_gui():
+    QueueApp().mainloop()
