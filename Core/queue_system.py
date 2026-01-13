@@ -35,7 +35,7 @@ class QueueSystem:
         self.queues_by_service[service.service_id] = []
 
     def list_services(self) -> List[Service]:
-        return list(self.services.values())
+        return list(self.services.values()) # list
 
     # ---- Tickets list (for admin) ----
     def list_tickets(self, status: Optional[str] = None) -> List[Ticket]:

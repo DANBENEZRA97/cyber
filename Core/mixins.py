@@ -5,9 +5,9 @@ from typing import List
 
 
 class AuditMixin:
-    """Mixin: מוסיף audit_log + פעולות לוגיות של תיעוד."""
+    """Mixin: Logic for audit logging."""
     def __init__(self) -> None:
-        self.audit_log: List[str] = []  # list (דרישה)
+        self.audit_log: List[str] = []  # list
 
     def log(self, message: str) -> None:
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -18,6 +18,6 @@ class AuditMixin:
 
 
 class NotifiableMixin:
-    """Mixin: מדמה יכולת הודעה למשתמש (בהמשך GUI יכול להחליף)."""
+    """Mixin: Logic for notifications."""
     def notify(self, message: str) -> None:
         print(f"NOTIFY: {message}")

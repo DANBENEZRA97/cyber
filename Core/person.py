@@ -17,13 +17,28 @@ class Person:
         return f"{self.full_name} ({self.person_id})"
 
 
-class Customer(Person):  
+class Customer(Person):  # inheritance
     def __init__(self, person_id: str, full_name: str, phone: str, priority: int = 0) -> None:
         super().__init__(person_id, full_name, phone)
         self.priority: int = priority             
         self.active_ticket_id: Optional[str] = None #
+
     def set_active_ticket(self, ticket_id: Optional[str]) -> None:
         self.active_ticket_id = ticket_id
 
     def is_waiting(self) -> bool:
         return self.active_ticket_id is not None
+
+
+class PriorityCustomer(Customer):
+    """
+    Represents a customer with automatic high priority.
+    This class exists to satisfy the second regular inheritance requirement.
+    """
+    def __init__(self, person_id: str, full_name: str, phone: str):
+        super().__init__(
+            person_id=person_id,
+            full_name=full_name,
+            phone=phone,
+            priority=1
+        )

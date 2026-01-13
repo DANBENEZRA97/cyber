@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog  # 🔐 NEW
 
 from Core.queue_system import QueueSystem
-from Core.person import Customer
+from Core.person import Customer, PriorityCustomer
 from Core.service import Service
 
 ADMIN_PASSWORD = "admin123"  # 🔐 NEW
@@ -25,10 +25,15 @@ class QueueApp(tk.Tk):
         self._refresh_admin_list()
 
     def _seed_data(self) -> None:
+        # Seed some services
         self.system.add_service(Service("S1", "Customer Support", 7))
         self.system.add_service(Service("S2", "Payments", 5))
         self.system.add_service(Service("S3", "Tech Help", 10))
 
+        # Seed some customers
+        vip = [
+            PriorityCustomer(person_id="VIP1", full_name="VIP Client", phone="050-9999999")
+        ]
         customers = [
             Customer("C1", "Alice Cohen", "050-1111111", priority=0),
             Customer("C2", "Bob Levi", "050-2222222", priority=1),
@@ -36,9 +41,13 @@ class QueueApp(tk.Tk):
             Customer("C4", "Eyal Mor", "050-4444444", priority=1),
             Customer("C5", "Noa Bar", "050-5555555", priority=0),
         ]
+
         for c in customers:
             self.system.add_customer(c)
+        for v in vip:
+            self.system.add_customer(v)
 
+        self.system.create_ticket("VIP1", "S1", priority=1) # VIP ticket
         self.system.create_ticket("C1", "S1", priority=0)
         self.system.create_ticket("C2", "S1", priority=1)
         self.system.create_ticket("C3", "S1", priority=0)
@@ -161,7 +170,7 @@ class QueueApp(tk.Tk):
         self.admin_details = tk.Text(admin_mid, wrap="word")
         self.admin_details.pack(side="left", fill="both", expand=True)
 
-    # 🔐 NEW: סיסמת אדמין בלבד (לא משנה כלום אחר)
+    # 🔐 Check for the admin Password
     def _on_tab_change(self, event):
         selected = event.widget.tab(event.widget.index("current"))["text"]
         if selected == "Admin" and not self.admin_authenticated:
@@ -185,9 +194,9 @@ class QueueApp(tk.Tk):
             service_id = self.service_display_to_id[self.u_service.get()]
 
             if cid not in self.system.customers:
-                self.system.add_customer(Customer(cid, name, phone, priority=0))
-            else:
-                c = self.system.customers[cid]
+                self.system.add_customer(Customer(cid, name, phone, priority=0)) # New customers are normal priority
+            else: 
+                c = self.system.customers[cid] 
                 c.full_name, c.phone, c.priority = name, phone, 0
 
             ticket = self.system.create_ticket(cid, service_id, priority=0)
