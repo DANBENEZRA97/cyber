@@ -20,8 +20,9 @@ class Person:
 class Customer(Person):  # inheritance
     def __init__(self, person_id: str, full_name: str, phone: str, priority: int = 0) -> None:
         super().__init__(person_id, full_name, phone)
-        self.priority: int = priority             
-        self.active_ticket_id: Optional[str] = None #
+        self.priority: int = priority
+        self.active_ticket_id: Optional[str] = None
+        self.is_vip: bool = False  # NEW
 
     def set_active_ticket(self, ticket_id: Optional[str]) -> None:
         self.active_ticket_id = ticket_id
@@ -32,8 +33,7 @@ class Customer(Person):  # inheritance
 
 class PriorityCustomer(Customer):
     """
-    Represents a customer with automatic high priority.
-    This class exists to satisfy the second regular inheritance requirement.
+    VIP customer: always treated as VIP and priority=1.
     """
     def __init__(self, person_id: str, full_name: str, phone: str):
         super().__init__(
@@ -42,3 +42,4 @@ class PriorityCustomer(Customer):
             phone=phone,
             priority=1
         )
+        self.is_vip = True  # NEW

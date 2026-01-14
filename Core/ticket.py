@@ -5,7 +5,14 @@ from Core.mixins import AuditMixin, NotifiableMixin
 
 
 class Ticket(AuditMixin, NotifiableMixin):  # Multiple Inheritance
-    def __init__(self, ticket_id: str, customer_id: str, service_id: str, priority: int = 0) -> None:
+    def __init__(
+        self,
+        ticket_id: str,
+        customer_id: str,
+        service_id: str,
+        priority: int = 0,
+        is_vip: bool = False,  # NEW
+    ) -> None:
         AuditMixin.__init__(self)
         self.ticket_id: str = ticket_id
         self.customer_id: str = customer_id
@@ -13,9 +20,14 @@ class Ticket(AuditMixin, NotifiableMixin):  # Multiple Inheritance
 
         self.created_at: datetime = datetime.now()
         self.status: str = "WAITING"  # WAITING / CALLED / DONE / CANCELED
-        self.priority: int = int(priority)  # 0/1 (חדש)
+        self.priority: int = int(priority)  # 0/1
+        self.is_vip: bool = bool(is_vip)  # NEW
 
-        self.log(f"Ticket created (customer={customer_id}, service={service_id}, priority={self.priority})")
+        self.log(
+            f"Ticket created (customer={customer_id}, service={service_id}, "
+            f"priority={self.priority}, vip={self.is_vip})"
+        )
+
 
     def set_priority(self, new_priority: int) -> None:
         new_priority = int(new_priority)
@@ -46,6 +58,8 @@ class Ticket(AuditMixin, NotifiableMixin):  # Multiple Inheritance
         self.status = "CANCELED"
         self.log("Status -> CANCELED")
 
-    def summary(self) -> str:
-        t = self.created_at.strftime("%H:%M:%S")
-        return f"{self.ticket_id} | P={self.priority} | {self.status} | {t}"
+def summary(self) -> str:
+    t = self.created_at.strftime("%H:%M:%S")
+    vip = "VIP" if self.is_vip else "REG"
+    return f"{self.ticket_id} | {vip} | P={self.priority} | {self.status} | {t}"
+

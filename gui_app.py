@@ -10,50 +10,20 @@ ADMIN_PASSWORD = "admin123"  # 🔐 NEW
 
 
 class QueueApp(tk.Tk):
-    def __init__(self) -> None:
+    def __init__(self, system: QueueSystem) -> None:
+
         super().__init__()
         self.title("Queue Management System")
         self.geometry("950x600")
 
-        self.system = QueueSystem()
-        self._seed_data()
+        self.system = system
 
         self.admin_authenticated = False  # 🔐 NEW
 
         self._build_ui()
         self._refresh_user_queue()
         self._refresh_admin_list()
-
-    def _seed_data(self) -> None:
-        # Seed some services
-        self.system.add_service(Service("S1", "Customer Support", 7))
-        self.system.add_service(Service("S2", "Payments", 5))
-        self.system.add_service(Service("S3", "Tech Help", 10))
-
-        # Seed some customers
-        vip = [
-            PriorityCustomer(person_id="VIP1", full_name="VIP Client", phone="050-9999999")
-        ]
-        customers = [
-            Customer("C1", "Alice Cohen", "050-1111111", priority=0),
-            Customer("C2", "Bob Levi", "050-2222222", priority=1),
-            Customer("C3", "Dana Israel", "050-3333333", priority=0),
-            Customer("C4", "Eyal Mor", "050-4444444", priority=1),
-            Customer("C5", "Noa Bar", "050-5555555", priority=0),
-        ]
-
-        for c in customers:
-            self.system.add_customer(c)
-        for v in vip:
-            self.system.add_customer(v)
-
-        self.system.create_ticket("VIP1", "S1", priority=1) # VIP ticket
-        self.system.create_ticket("C1", "S1", priority=0)
-        self.system.create_ticket("C2", "S1", priority=1)
-        self.system.create_ticket("C3", "S1", priority=0)
-        self.system.create_ticket("C4", "S1", priority=1)
-        self.system.create_ticket("C5", "S2", priority=0)
-
+    
     def _build_ui(self) -> None:
         services = self.system.list_services()
         self.service_display_to_id = {s.display(): s.service_id for s in services}
@@ -123,6 +93,11 @@ class QueueApp(tk.Tk):
         ttk.Label(admin_top, text="Phone:").grid(row=0, column=4, padx=6)
         self.a_phone = ttk.Entry(admin_top, width=18)
         self.a_phone.grid(row=0, column=5, padx=6)
+        
+        self.a_is_vip = tk.BooleanVar(value=False)
+        ttk.Checkbutton(admin_top, text="VIP Customer", variable=self.a_is_vip).grid(
+            row=2, column=0, padx=6, pady=6, sticky="w"
+        )
 
         ttk.Label(admin_top, text="Service (filter + actions):").grid(row=1, column=0, padx=6)
         self.a_service = ttk.Combobox(admin_top, state="readonly", values=service_values)
@@ -147,8 +122,9 @@ class QueueApp(tk.Tk):
         admin_mid = ttk.Frame(self.tab_admin)
         admin_mid.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self.admin_list = tk.Listbox(admin_mid, height=18)
+        self.admin_list = tk.Listbox(admin_mid, height=18, width=55)  # הרחבה
         self.admin_list.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
         self.admin_list.bind("<Double-Button-1>", self.on_admin_select)
 
         admin_controls = ttk.Frame(admin_mid)
@@ -226,10 +202,22 @@ class QueueApp(tk.Tk):
             service_id = self.service_display_to_id[self.a_service.get()]
 
             if cid not in self.system.customers:
-                self.system.add_customer(Customer(cid, name, phone, priority))
+                if self.a_is_vip.get():
+                    self.system.add_customer(PriorityCustomer(cid, name, phone))
+                    priority = 1  # לוודא עקביות גם בטיקט
+                else:
+                    self.system.add_customer(Customer(cid, name, phone, priority))
             else:
                 c = self.system.customers[cid]
-                c.full_name, c.phone, c.priority = name, phone, priority
+                c.full_name, c.phone = name, phone
+
+                # אם מסומן VIP, משדרגים את הלקוח הקיים ל-VIP ע"י החלפה במילון
+                if self.a_is_vip.get() and not getattr(c, "is_vip", False):
+                    self.system.customers[cid] = PriorityCustomer(cid, name, phone)
+                    priority = 1
+                else:
+                    c.priority = priority
+
 
             self.system.create_ticket(cid, service_id, priority=priority)
             self._refresh_user_queue()
@@ -308,7 +296,9 @@ class QueueApp(tk.Tk):
         for t in tickets:
             c = self.system.customers.get(t.customer_id)
             name = c.full_name if c else "UNKNOWN"
-            self.admin_list.insert(tk.END, f"{t.ticket_id} | P={t.priority} | {t.status} | {name}")
+            vip = "VIP" if getattr(t, "is_vip", False) else "REG"
+            self.admin_list.insert(tk.END, f"{t.ticket_id} | {vip} | P={t.priority} | {t.status} | {name}")
+
 
     def _selected_admin_ticket(self):
         sel = self.admin_list.curselection()
@@ -336,5 +326,6 @@ class QueueApp(tk.Tk):
         )
 
 
-def run_gui():
-    QueueApp().mainloop()
+def run_gui(system: QueueSystem):
+    QueueApp(system).mainloop()
+

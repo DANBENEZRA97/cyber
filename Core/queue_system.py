@@ -47,24 +47,34 @@ class QueueSystem:
     # ---- Queue helpers (PRIORITY) ----
     def _enqueue_ticket(self, service_id: str, ticket_id: str) -> None:
         """
-        מכניס טיקט לתור לפי עדיפות:
-        priority=1 נכנס לפני priority=0 (ועדיין שומר FIFO בתוך אותה עדיפות).
+        סדר בתור:
+        1) VIP לפני כולם
+        2) אחר כך priority=1 לפני priority=0
+        3) FIFO בתוך אותה קבוצה
         """
         q = self.queues_by_service[service_id]
         t = self.tickets[ticket_id]
 
-        if t.priority == 0:
-            q.append(ticket_id)
-            return
+        def rank(ticket: Ticket) -> tuple:
+            # vip קודם -> לכן False/True הפוך: VIP יקבל 0
+            vip_rank = 0 if ticket.is_vip else 1
+            # priority גבוה קודם -> 1 לפני 0
+            pr_rank = 0 if ticket.priority == 1 else 1
+            return (vip_rank, pr_rank)
 
-        # priority=1: נכנס אחרי כל ה-priority=1 הקיימים (FIFO בתוך P=1)
+        new_rank = rank(t)
+
+        # מצא את המקום האחרון שמותר לנו להיכנס אליו כדי לשמור FIFO בתוך אותה קבוצה
         insert_idx = 0
         for i, tid in enumerate(q):
-            if self.tickets[tid].priority == 1:
+            cur = self.tickets[tid]
+            if rank(cur) <= new_rank:
                 insert_idx = i + 1
             else:
                 break
+
         q.insert(insert_idx, ticket_id)
+
 
     def _reorder_waiting_ticket(self, ticket_id: str) -> None:
         """
@@ -98,7 +108,14 @@ class QueueSystem:
         # אם לא הועבר priority, ניקח מהלקוח (או 0)
         p = customer.priority if priority is None else int(priority)
 
-        ticket = Ticket(ticket_id=ticket_id, customer_id=customer_id, service_id=service_id, priority=p)
+        ticket = Ticket(
+        ticket_id=ticket_id,
+        customer_id=customer_id,
+        service_id=service_id,
+        priority=p,
+        is_vip=getattr(customer, "is_vip", False),  # NEW
+        )
+
         self.tickets[ticket_id] = ticket
 
         self._enqueue_ticket(service_id, ticket_id)  # ✅ הכנסת תור לפי עדיפות
