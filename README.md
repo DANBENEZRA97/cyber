@@ -1,34 +1,38 @@
-# cyber# הוראות הפעלה - Queue Management System
+# Introduction To Cyber Security - Queue Management System - Manual Instructions
 
-## דרישות
+## Requirements
 
 - Python 3.10+ (מומלץ)
 
-## איך מריצים
+## How to Run:
 
-1. פתח טרמינל בתיקייה `queue_project/`
-2. הרץ:
+1. Clone The repository to folder of your own choice
+2. Run: 
    python main.py
 
-## GUI - פקדים ואירועים
+## GUI - Controls and Events  
 
-פקדים:
+Controls:
 
-- Entry: Customer ID (קלט)
-- Entry: Full Name (קלט)
-- Entry: Phone (קלט)
-- Entry: Priority (קלט)
-- Combobox: Service (בחירה)
-- Button: Create Ticket
-- Button: Call Next
-- Button: Finish Selected
-- Button: Cancel Selected
-- Listbox: רשימת התור
-- Text: פרטי טיקט / Audit Log
+- Entry: Customer ID (Input)
+- Entry: Full Name (Input)
+- Entry: Phone (Input)
+- Entry: Priority (Input)
+- Combobox: Service (Choice)
+- Button: Create Ticket (Button)
+- Button: Call Next (Button)
+- Button: Finish Selected (Button)
+- Button: Cancel Selected (Button)
+- Listbox: Queue list
+- Text: Ticket Info / Audit Log
 
 Events:
 
-1. לחיצה על Create Ticket
-2. לחיצה על Call Next
-3. Double-click על טיקט ברשימה להצגת Audit Log
-   (+ שינוי בחירה ב-Combobox מרענן תור)
+- User Tab:
+1. fill the fields and "Join Queue" will sign to Queue.
+
+- Admin Tab:
+1. fill the fields and "Create Ticket" will sign to Queue.
+2. Double-Click on user will display hi's information (Audit).
+3. Update the priority of customers by changing the Box value (0/1), click the exact customer, 'Set Priority'.
+4. Call Next, Finish, Cancel.
