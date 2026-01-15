@@ -160,38 +160,56 @@ class QueueApp(tk.Tk):
 
     # ================= USER =================
     def on_user_join(self) -> None:
+        cid = self.u_id.get().strip()
+        name = self.u_name.get().strip()
+        phone = self.u_phone.get().strip()
+
         try:
-            cid = self.u_id.get().strip()
-            name = self.u_name.get().strip()
-            phone = self.u_phone.get().strip()
             if not cid or not name or not phone:
                 raise ValueError("Fill all fields")
 
             service_id = self.service_display_to_id[self.u_service.get()]
 
+            # Update / create customer first
             if cid not in self.system.customers:
-                self.system.add_customer(Customer(cid, name, phone, priority=0)) # New customers are normal priority
-            else: 
-                c = self.system.customers[cid] 
+                self.system.add_customer(Customer(cid, name, phone, priority=0))
+            else:
+                c = self.system.customers[cid]
                 c.full_name, c.phone, c.priority = name, phone, 0
 
+            # Try to create a new ticket
             ticket = self.system.create_ticket(cid, service_id, priority=0)
 
             self.user_output.delete("1.0", tk.END)
             self.user_output.insert(tk.END, f"Hello {name}\nYour ticket number is {ticket.ticket_id}")
 
-            self._refresh_user_queue()
-            self._refresh_admin_list()
+        except ValueError as e:
+            # Special case: customer already waiting
+            if "active ticket" in str(e):
+                self.user_output.delete("1.0", tk.END)
+                self.user_output.insert(
+                    tk.END,
+                    f"Hello {name}\nYou already have an active ticket. Details were updated."
+                )
+            else:
+                messagebox.showerror("Error", str(e))
 
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+        finally:
+            # Always refresh UI so updated name appears immediately
+            self._refresh_user_queue()
+            self._refresh_admin_list()
+
+
     # ================= ADMIN =================
     def on_admin_create(self) -> None:
+        cid = self.a_id.get().strip()
+        name = self.a_name.get().strip()
+        phone = self.a_phone.get().strip()
+
         try:
-            cid = self.a_id.get().strip()
-            name = self.a_name.get().strip()
-            phone = self.a_phone.get().strip()
             if not cid or not name or not phone:
                 raise ValueError("Fill all fields")
 
@@ -204,27 +222,41 @@ class QueueApp(tk.Tk):
             if cid not in self.system.customers:
                 if self.a_is_vip.get():
                     self.system.add_customer(PriorityCustomer(cid, name, phone))
-                    priority = 1  # לוודא עקביות גם בטיקט
+                    priority = 1
                 else:
                     self.system.add_customer(Customer(cid, name, phone, priority))
             else:
                 c = self.system.customers[cid]
                 c.full_name, c.phone = name, phone
 
-                # אם מסומן VIP, משדרגים את הלקוח הקיים ל-VIP ע"י החלפה במילון
                 if self.a_is_vip.get() and not getattr(c, "is_vip", False):
                     self.system.customers[cid] = PriorityCustomer(cid, name, phone)
                     priority = 1
                 else:
                     c.priority = priority
 
-
+            # יצירת טיקט (עלולה להיכשל אם יש כבר active ticket)
             self.system.create_ticket(cid, service_id, priority=priority)
-            self._refresh_user_queue()
-            self._refresh_admin_list()
+
+        except ValueError as e:
+            # מצב שכיח: לקוח כבר מחכה (active ticket)
+            if "active ticket" in str(e):
+                messagebox.showwarning(
+                    "Cannot create ticket",
+                    "Customer details were updated.\n"
+                    "Cannot create a new ticket while the customer is already waiting."
+                )
+            else:
+                messagebox.showerror("Error", str(e))
 
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
+        finally:
+            # תמיד לרענן כדי שהשם/טלפון החדשים יוצגו מיד
+            self._refresh_user_queue()
+            self._refresh_admin_list()
+
 
     def on_call_next(self):
         try:
