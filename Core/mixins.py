@@ -2,6 +2,8 @@
 from __future__ import annotations
 from datetime import datetime
 from typing import List
+from tkinter import messagebox
+import tkinter as tk
 
 
 class AuditMixin:
@@ -18,6 +20,16 @@ class AuditMixin:
 
 
 class NotifiableMixin:
-    """Mixin: Logic for notifications."""
     def notify(self, message: str) -> None:
-        print(f"NOTIFY: {message}")
+        """
+        Show a small GUI notification if a Tk root exists.
+        Fallback to print() if GUI is not running.
+        """
+        try:
+            # Check if there is an active Tk root window
+            if tk._default_root is not None:
+                messagebox.showinfo("Notification", message)
+            else:
+                print(f"[NOTIFY] {message}")
+        except Exception:
+            print(f"[NOTIFY] {message}")
