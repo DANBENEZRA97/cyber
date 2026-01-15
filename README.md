@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Python 3.10+ (מומלץ)
+- Python 3.10+ (Recommended)
 
 ## How to Run:
 
